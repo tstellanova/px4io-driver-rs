@@ -97,7 +97,7 @@ impl<DI, CommE> IoMcuDriver<DI>
                            -> Result<(), DI::InterfaceError> {
         let mut reg_val = self.get_one_register(page, offset)?;
         reg_val |= set_bits;
-        reg_val ~ = clear_bits;
+        reg_val &= !clear_bits;
         self.set_one_register(page, offset, reg_val)
     }
 }
