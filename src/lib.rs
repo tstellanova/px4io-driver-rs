@@ -2,6 +2,8 @@ use shufflebuf::ShuffleBuf;
 
 use embedded_hal as hal;
 
+mod registers;
+
 /// Errors in this crate
 #[derive(Debug)]
 pub enum Error<CommE> {
@@ -61,12 +63,13 @@ impl<DI, CommE> IoMcuDriver<DI>
     /// - `offset` is the offset ot begin writing at
     /// - `values` are the values to write
     pub fn set_registers(&mut self, page: u8, offset: u8, values: &[RegisterValue])
-        -> Result<(), DI::InterfaceError> {
+                         -> Result<(), DI::InterfaceError> {
         unimplemented!()
     }
 
+    /// Set the value of one virtual register
     pub fn set_one_register(&mut self, page: u8, offset: u8, value: RegisterValue)
-        -> Result<(), DI::InterfaceError> {
+                            -> Result<(), DI::InterfaceError> {
         self.set_registers(page, offset, &[value])
     }
 
@@ -75,13 +78,13 @@ impl<DI, CommE> IoMcuDriver<DI>
     /// - `offset` is the offset to begin reading values from
     /// - `values` is the destination to copy register values into
     pub fn get_registers(&mut self, page: u8, offset: u8, values: &mut [RegisterValue])
-        -> Result<(), DI::InterfaceError> {
+                         -> Result<(), DI::InterfaceError> {
         unimplemented!()
     }
 
     pub fn get_one_register(&mut self, page: u8, offset: u8) -> Result<RegisterValue, DI::InterfaceError> {
-        let mut read_buf: [RegisterValue;1] = [0; 1];
-        self.get_registers(offset, offset,&mut read_buf)?;
+        let mut read_buf: [RegisterValue; 1] = [0; 1];
+        self.get_registers(offset, offset, &mut read_buf)?;
         Ok(read_buf[0])
     }
 
@@ -91,13 +94,13 @@ impl<DI, CommE> IoMcuDriver<DI>
     /// - `clear_bits` are bits to clear in the register
     /// - `set_bits` are bits to set in the register
     pub fn modify_register(&mut self, page: u8, offset: u8, clear_bits: RegisterValue, set_bits: RegisterValue)
-        -> Result<(), DI::InterfaceError> {
+                           -> Result<(), DI::InterfaceError> {
         let mut reg_val = self.get_one_register(page, offset)?;
         reg_val |= set_bits;
-        reg_val ~= clear_bits;
+        reg_val ~ = clear_bits;
         self.set_one_register(page, offset, reg_val)
     }
-
+}
 
 #[cfg(test)]
 mod tests {
