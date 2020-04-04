@@ -94,6 +94,10 @@ impl IoPacket {
         self.crc = 0;
         self.page = 0;
         self.offset = 0;
+        for reg in self.registers.as_mut() {
+            // TODO need to use magic value 0x55aa ?
+            *reg = 0;
+        }
         self
     }
 
