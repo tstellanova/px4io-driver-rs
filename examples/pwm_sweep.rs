@@ -25,10 +25,9 @@ fn main() -> ! {
     let mut ccdr = rcc.sys_ck(100.mhz()).freeze(vos, &dp.SYSCFG);
 
     let clocks = ccdr.clocks;
-    let mut delay_source = p_hal::delay::Delay::new(cp.SYST, clocks);
+    let _delay_source = p_hal::delay::Delay::new(cp.SYST, clocks);
 
     // Grab the only GPIO we need for this example
-    let gpiob = dp.GPIOB.split(&mut ccdr.ahb4);
     let gpioe = dp.GPIOE.split(&mut ccdr.ahb4);
 
     // UART8 is the serial connection to the px4io IO coprocessor
@@ -41,15 +40,15 @@ fn main() -> ! {
     };
 
     if let Some(mut driver) = new_serial_driver(uart8_port) {
-        // 0 == REG_CONFIG_N_RELAY_OUTPUTS+1
+        // 9 == REG_CONFIG_N_RELAY_OUTPUTS+1
         let mut fetch_regs: [RegisterValue; 9] = [0; 9];
-        driver.get_registers(
+        let _ = driver.get_registers(
             registers::PAGE_CONFIG,
             registers::REG_CONFIG_PROTOCOL_VERSION,
             &mut fetch_regs,
         );
 
-        hprintln!("fetch_regs: {:x?}", fetch_regs).ok();
+        hprintln!("fetch_regs: {:x?}", fetch_regs).unwrap();
     }
 
     loop {}

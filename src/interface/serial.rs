@@ -2,6 +2,8 @@ use super::DeviceInterface;
 use crate::{Error, IoPacket};
 use embedded_hal as hal;
 
+use nb::block;
+
 use crate::interface::{any_as_mut_u8_slice, any_as_u8_slice};
 
 /// This encapsulates the Serial UART peripheral
@@ -13,7 +15,7 @@ pub struct SerialInterface<SER> {
 impl<SER, CommE> SerialInterface<SER>
 where
     SER: hal::serial::Read<u8, Error = CommE>
-        + hal::blocking::serial::Write<u8, Error = CommE>,
+        + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     pub fn new(serial_port: SER) -> Self {
@@ -36,12 +38,21 @@ where
 
         Ok(read_count)
     }
+
+    /// Write up to buffer size bytes
+    fn write_many(&mut self, buffer: &[u8]) -> Result<(), Error<CommE>> {
+        for word in buffer {
+            let _ = block!(self.serial.write(*word));
+        }
+
+        Ok(())
+    }
 }
 
 impl<SER, CommE> DeviceInterface for SerialInterface<SER>
 where
     SER: hal::serial::Read<u8, Error = CommE>
-        + hal::blocking::serial::Write<u8, Error = CommE>,
+        + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     type InterfaceError = Error<CommE>;
@@ -58,7 +69,7 @@ where
     ) -> Result<usize, Self::InterfaceError> {
         // send a packet first, then receive one
         let write_slice = unsafe { any_as_u8_slice(send) };
-        self.serial.bwrite_all(write_slice).map_err(Error::Comm)?;
+        let _ = self.write_many(write_slice);
 
         let read_slice = unsafe { any_as_mut_u8_slice(recv) };
         let read_count = self.read_many(read_slice)?;

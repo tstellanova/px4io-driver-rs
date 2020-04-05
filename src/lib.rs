@@ -35,7 +35,7 @@ pub fn new_serial_driver<UART, CommE>(
 ) -> Option<IoMcuDriver<SerialInterface<UART>>>
 where
     UART: hal::serial::Read<u8, Error = CommE>
-        + hal::blocking::serial::Write<u8, Error = CommE>,
+        + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     let iface = interface::SerialInterface::new(uart);
