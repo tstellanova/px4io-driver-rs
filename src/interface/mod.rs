@@ -17,10 +17,18 @@ pub trait DeviceInterface {
         send: &IoPacket,
         recv: &mut IoPacket,
     ) -> Result<usize, Self::InterfaceError>;
+
+    /// Clear any remaining bytes in the pipe
+    fn discard_input(&mut self);
 }
 
+/// Bytes for each packet header (excluding registers)
+pub const PACKET_HEADER_LEN: usize = 4;
 /// Maximum number of register values a packet can contain
-pub(crate) const MAX_PACKET_REGISTERS: usize = 32;
+pub const MAX_PACKET_REGISTERS: usize = 32;
+/// Maximum size of a packet (bytes)
+pub const PACKET_MAX_LEN: usize = PACKET_HEADER_LEN + MAX_PACKET_REGISTERS*2;
+
 
 pub(crate) unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     core::slice::from_raw_parts(
@@ -95,8 +103,8 @@ impl IoPacket {
         self.page = 0;
         self.offset = 0;
         for reg in self.registers.as_mut() {
-            // TODO need to use magic value 0x55aa ?
-            *reg = 0;
+            //TODO Do we need to use this magic value?
+            *reg = 0x55aa;
         }
         self
     }
@@ -118,6 +126,10 @@ impl IoPacket {
         self.count_code & Self::PACKET_CODE_MASK
     }
 
+    pub fn count_code(&self) -> u8 {
+        self.count_code
+    }
+
     /// Calculate the CRC for this packet
     /// This includes the header (skipping self.crc)
     /// as well as all the valid values.
@@ -126,11 +138,16 @@ impl IoPacket {
         //terminate crc calculation at the last register value from valid_register_count
         let reg_vals_len = (self.valid_register_count() * 2) as usize;
 
-        let mut crc = Self::CRC8_TABLE[(full_slice[0]) as usize];
-        //skip full_slice[1], which is self.crc
+        Self::crc8_anon(full_slice, reg_vals_len)
+    }
+
+    pub fn crc8_anon(buf: &[u8], reg_vals_len: usize ) -> u8 {
+        let total_len = IO_PACKET_HEADER_LEN + reg_vals_len*2;
+        let mut crc = Self::CRC8_TABLE[buf[0] as usize];
+        //skip buf[1], which is self.crc
         crc = Self::CRC8_TABLE[crc as usize];
-        for i in 2..IO_PACKET_HEADER_LEN + reg_vals_len {
-            crc = Self::CRC8_TABLE[(crc ^ full_slice[i]) as usize];
+        for i in 2..total_len {
+            crc = Self::CRC8_TABLE[(crc ^ buf[i]) as usize];
         }
 
         crc
