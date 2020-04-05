@@ -8,7 +8,6 @@ LICENSE: BSD3 (see LICENSE file)
 use embedded_hal as hal;
 
 
-
 #[allow(unused)]
 pub mod protocol;
 #[allow(unused)]

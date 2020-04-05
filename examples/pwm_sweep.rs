@@ -34,7 +34,6 @@ fn main() -> ! {
     // 1.5 Mbps is the max rate for px4io
     let uart8_port = {
         let config = p_hal::serial::config::Config::default()
-            //.hw_flow_enabled(true)
             .baudrate(1_500_000_u32.bps());
         let rx = gpioe.pe0.into_alternate_af8();
         let tx = gpioe.pe1.into_alternate_af8();

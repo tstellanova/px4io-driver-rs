@@ -116,8 +116,8 @@ where
     /// Clear any remaining bytes in the pipe
     fn discard_input(&mut self) {
         let mut discard_count = 0;
+        let mut fail_count = 0;
         loop {
-            let mut fail_count = 0;
             let read_result = self.serial.read();
             match read_result {
                 Ok(_) => {
