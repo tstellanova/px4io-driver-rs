@@ -159,7 +159,7 @@ where
         // if we get this far, then self.recv_packet contains read values
         if self.recv_packet.valid_register_count() != values.len() as u8 {
             hprintln!("mismatch {} != {}",
-            self.recv_packet.valid_register_count(), values.len());
+            self.recv_packet.valid_register_count(), values.len()).unwrap();
         }
         values.copy_from_slice(
             self.recv_packet.registers[..values.len()].as_ref(),

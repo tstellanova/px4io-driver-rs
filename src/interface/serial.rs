@@ -58,7 +58,7 @@ where
             }
         }
         if read_count != buffer.len() {
-            hprintln!("nread {} != {} {:x?}", read_count, buffer.len(), buffer[..read_count].as_ref());
+            let _ = hprintln!("nread {} != {} {:x?}", read_count, buffer.len(), buffer[..read_count].as_ref());
         }
         Ok(read_count)
     }
@@ -120,7 +120,7 @@ where
             let mut fail_count = 0;
             let read_result = self.serial.read();
             match read_result {
-                Ok(read_byte) => {
+                Ok(_) => {
                     fail_count = 0;
                     discard_count += 1;
                 }
