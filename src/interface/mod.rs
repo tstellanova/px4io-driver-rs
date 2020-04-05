@@ -104,7 +104,7 @@ impl IoPacket {
     /// Check whether the received CRC is valid
     pub fn is_crc_valid(&self) -> bool {
         let calc_crc = self.calc_crc();
-        (calc_crc == self.crc)
+        calc_crc == self.crc
     }
 
     /// How many register values have been filled in this packet?

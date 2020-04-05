@@ -7,6 +7,8 @@ LICENSE: BSD3 (see LICENSE file)
 
 use embedded_hal as hal;
 
+
+
 #[allow(unused)]
 mod protocol;
 #[allow(unused)]
@@ -16,6 +18,11 @@ mod interface;
 use crate::protocol::{PACKET_CODE_CORRUPT, PACKET_CODE_ERROR};
 use crate::Error::ErrorResponse;
 use interface::{DeviceInterface, IoPacket, SerialInterface};
+
+
+// use cortex_m_rt as rt;
+// #[cfg(debug_assertions)]
+// use cortex_m_semihosting::hprintln;
 
 /// Errors in this crate
 #[derive(Debug)]
@@ -106,13 +113,15 @@ where
 
             if self.recv_packet.is_crc_valid() {
                 let opcode = self.recv_packet.packet_code();
-                if opcode != PACKET_CODE_CORRUPT && opcode != PACKET_CODE_ERROR
-                {
+                if opcode != PACKET_CODE_CORRUPT && opcode != PACKET_CODE_ERROR {
                     return Ok(());
                 }
             }
+            else {
+                //hprintln!("packet_exchange invalid crc").unwrap();
+            }
         }
-
+        // hprintln!("packet_exchange failed").unwrap();
         Err(ErrorResponse)
     }
 
