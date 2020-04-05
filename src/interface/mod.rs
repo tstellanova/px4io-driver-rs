@@ -27,8 +27,7 @@ pub const PACKET_HEADER_LEN: usize = 4;
 /// Maximum number of register values a packet can contain
 pub const MAX_PACKET_REGISTERS: usize = 32;
 /// Maximum size of a packet (bytes)
-pub const PACKET_MAX_LEN: usize = PACKET_HEADER_LEN + MAX_PACKET_REGISTERS*2;
-
+pub const PACKET_MAX_LEN: usize = PACKET_HEADER_LEN + MAX_PACKET_REGISTERS * 2;
 
 pub(crate) unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     core::slice::from_raw_parts(
@@ -141,8 +140,8 @@ impl IoPacket {
         Self::crc8_anon(full_slice, reg_vals_len)
     }
 
-    pub fn crc8_anon(buf: &[u8], reg_vals_len: usize ) -> u8 {
-        let total_len = IO_PACKET_HEADER_LEN + reg_vals_len*2;
+    pub fn crc8_anon(buf: &[u8], reg_vals_len: usize) -> u8 {
+        let total_len = IO_PACKET_HEADER_LEN + reg_vals_len * 2;
         let mut crc = Self::CRC8_TABLE[buf[0] as usize];
         //skip buf[1], which is self.crc
         crc = Self::CRC8_TABLE[crc as usize];

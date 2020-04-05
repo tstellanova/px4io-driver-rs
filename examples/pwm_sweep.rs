@@ -8,7 +8,7 @@ use stm32h7xx_hal as p_hal;
 
 use cortex_m_rt::entry;
 
-use core::fmt::{Write};
+use core::fmt::Write;
 
 use px4io_driver::{new_serial_driver, registers, RegisterValue};
 
@@ -58,13 +58,13 @@ fn main() -> ! {
 
             let mut values: [RegisterValue; 5] = [0; 5];
             let mut offset = registers::REG_CONFIG_PROTOCOL_VERSION;
-            let _ = writeln!(console_tx,"---").unwrap();
+            let _ = writeln!(console_tx, "---").unwrap();
             let _ = driver.get_registers(
                 registers::PAGE_CONFIG,
                 offset,
                 &mut values,
             );
-            writeln!(console_tx,"{}: {:x?}", offset, values).unwrap();
+            writeln!(console_tx, "{}: {:x?}", offset, values).unwrap();
 
             let mut values: [RegisterValue; 4] = [0; 4];
             offset = registers::REG_CONFIG_N_RC_INPUTS;
@@ -73,7 +73,7 @@ fn main() -> ! {
                 offset,
                 &mut values,
             );
-            writeln!(console_tx,"{} : {:x?}", offset, values).unwrap();
+            writeln!(console_tx, "{} : {:x?}", offset, values).unwrap();
         }
     }
 

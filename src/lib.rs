@@ -7,17 +7,17 @@ LICENSE: BSD3 (see LICENSE file)
 
 use embedded_hal as hal;
 
-
 #[allow(unused)]
 pub mod protocol;
 #[allow(unused)]
 pub mod registers;
 
 pub mod interface;
-use crate::protocol::{PACKET_CODE_CORRUPT, PACKET_CODE_ERROR, PACKET_CODE_WRITE};
+use crate::protocol::{
+    PACKET_CODE_CORRUPT, PACKET_CODE_ERROR, PACKET_CODE_WRITE,
+};
 use crate::Error::ErrorResponse;
 use interface::{DeviceInterface, IoPacket, SerialInterface};
-
 
 #[cfg(debug_assertions)]
 use cortex_m_semihosting::hprintln;
@@ -39,8 +39,7 @@ pub fn new_serial_driver<UART, CommE>(
     uart: UART,
 ) -> Option<IoMcuDriver<SerialInterface<UART>>>
 where
-    UART: hal::serial::Read<u8, Error = CommE>
-        + hal::serial::Write<u8>,
+    UART: hal::serial::Read<u8, Error = CommE> + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     let iface = interface::SerialInterface::new(uart);
@@ -103,20 +102,29 @@ where
         &mut self,
         retries: u8,
     ) -> Result<(), DI::InterfaceError> {
-        let query_count_code =   self.send_packet.count_code();
+        let query_count_code = self.send_packet.count_code();
         for _ in 0..retries {
             self.recv_packet.clear();
-            if let Ok(recv_size) = self.di
-                .exchange_packets(&self.send_packet, &mut self.recv_packet) {
+            if let Ok(recv_size) = self
+                .di
+                .exchange_packets(&self.send_packet, &mut self.recv_packet)
+            {
                 if recv_size > 0 && self.recv_packet.is_crc_valid() {
                     let count_code = self.recv_packet.count_code();
-                    hprintln!("recv_size: {} ccode: {} qcode: {}", recv_size, count_code,query_count_code ).unwrap();
-                    if count_code != PACKET_CODE_CORRUPT && count_code != PACKET_CODE_ERROR {
+                    hprintln!(
+                        "recv_size: {} ccode: {} qcode: {}",
+                        recv_size,
+                        count_code,
+                        query_count_code
+                    )
+                    .unwrap();
+                    if count_code != PACKET_CODE_CORRUPT
+                        && count_code != PACKET_CODE_ERROR
+                    {
                         if count_code == query_count_code {
                             return Ok(());
                         }
-                    }
-                    else {
+                    } else {
                         self.di.discard_input(); //try again
                     }
                 } else {
@@ -157,8 +165,12 @@ where
         self.packet_exchange(5)?;
         // if we get this far, then self.recv_packet contains read values
         if self.recv_packet.valid_register_count() != values.len() as u8 {
-            hprintln!("mismatch {} != {}",
-            self.recv_packet.valid_register_count(), values.len()).unwrap();
+            hprintln!(
+                "mismatch {} != {}",
+                self.recv_packet.valid_register_count(),
+                values.len()
+            )
+            .unwrap();
         }
         values.copy_from_slice(
             self.recv_packet.registers[..values.len()].as_ref(),

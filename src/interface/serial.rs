@@ -4,7 +4,9 @@ use embedded_hal as hal;
 
 use nb::block;
 
-use crate::interface::{any_as_mut_u8_slice, any_as_u8_slice, IO_PACKET_HEADER_LEN};
+use crate::interface::{
+    any_as_mut_u8_slice, any_as_u8_slice, IO_PACKET_HEADER_LEN,
+};
 
 #[cfg(debug_assertions)]
 use cortex_m_semihosting::hprintln;
@@ -17,8 +19,7 @@ pub struct SerialInterface<SER> {
 
 impl<SER, CommE> SerialInterface<SER>
 where
-    SER: hal::serial::Read<u8, Error = CommE>
-        + hal::serial::Write<u8>,
+    SER: hal::serial::Read<u8, Error = CommE> + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     pub fn new(serial_port: SER) -> Self {
@@ -33,7 +34,7 @@ where
         let mut read_count: usize = 0;
         let mut block_count = 0;
         while read_count < buffer.len() {
-            let read_result =  self.serial.read();
+            let read_result = self.serial.read();
             match read_result {
                 Ok(read_byte) => {
                     fail_count = 0;
@@ -58,7 +59,12 @@ where
             }
         }
         if read_count != buffer.len() {
-            let _ = hprintln!("nread {} != {} {:x?}", read_count, buffer.len(), buffer[..read_count].as_ref());
+            let _ = hprintln!(
+                "nread {} != {} {:x?}",
+                read_count,
+                buffer.len(),
+                buffer[..read_count].as_ref()
+            );
         }
         Ok(read_count)
     }
@@ -78,8 +84,7 @@ where
 
 impl<SER, CommE> DeviceInterface for SerialInterface<SER>
 where
-    SER: hal::serial::Read<u8, Error = CommE>
-        + hal::serial::Write<u8>,
+    SER: hal::serial::Read<u8, Error = CommE> + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     type InterfaceError = Error<CommE>;
@@ -94,7 +99,6 @@ where
         send: &IoPacket,
         recv: &mut IoPacket,
     ) -> Result<usize, Self::InterfaceError> {
-
         let out_reg_count = send.valid_register_count();
         let packet_len = IO_PACKET_HEADER_LEN + (out_reg_count * 2) as usize;
         hprintln!("ex len: {}", packet_len).unwrap();

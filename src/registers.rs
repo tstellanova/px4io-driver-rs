@@ -64,7 +64,6 @@ pub const REG_CONFIG_N_RELAY_OUTPUTS: u8 = 8;
 /// Number of currently valid RC channels
 pub const REG_RAW_RC_INPUT_COUNT: u8 = 0;
 
-
 /// Test Debug Page register offsets:
 
 /// Toggle the IOMCU's "amber" LED on and off

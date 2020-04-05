@@ -8,11 +8,11 @@ use stm32h7xx_hal as p_hal;
 
 use cortex_m_rt::entry;
 
-use px4io_driver::interface::{PACKET_HEADER_LEN};
-use px4io_driver::registers::{PAGE_CONFIG};
+use px4io_driver::interface::PACKET_HEADER_LEN;
 use px4io_driver::protocol::PACKET_CODE_READ;
+use px4io_driver::registers::PAGE_CONFIG;
 
-use core::fmt::{Write};
+use core::fmt::Write;
 
 /// This isn't strictly an example, but rather a tool for debugging the
 /// serial protocol between PX4FMU and PX4IO (IOMCU)
@@ -62,15 +62,18 @@ fn main() -> ! {
     };
 
     const EXPECTED_PX4IO_PROTOCOL_VERSION: u8 = 4;
-    const TEST_REG_COUNT:usize = 4;
-    const QUERY_RESPONSE_LEN:usize = PACKET_HEADER_LEN + 2*TEST_REG_COUNT;
+    const TEST_REG_COUNT: usize = 4;
+    const QUERY_RESPONSE_LEN: usize = PACKET_HEADER_LEN + 2 * TEST_REG_COUNT;
     const QUERY_TYPE: u8 = px4io_driver::protocol::PACKET_CODE_READ; //PACKET_CODE_WRITE
     const QUERY_PAGE: u8 = PAGE_CONFIG;
 
     let mut query_block = [0u8; QUERY_RESPONSE_LEN];
     query_block[0] = (TEST_REG_COUNT as u8) | QUERY_TYPE;
     query_block[2] = QUERY_PAGE;
-    let crc =  px4io_driver::interface::IoPacket::crc8_anon(&query_block, TEST_REG_COUNT);
+    let crc = px4io_driver::interface::IoPacket::crc8_anon(
+        &query_block,
+        TEST_REG_COUNT,
+    );
     query_block[1] = crc;
 
     'outer: loop {
@@ -78,13 +81,17 @@ fn main() -> ! {
         loop {
             let rc = uart8_port.read();
             match rc {
-                Err(nb::Error::WouldBlock) => { break; }
-                _ => { }
+                Err(nb::Error::WouldBlock) => {
+                    break;
+                }
+                _ => {}
             }
         }
 
         delay_source.delay_ms(250u8);
-        if uart8_port.bwrite_all(&query_block).is_ok() && uart8_port.bflush().is_ok() {
+        if uart8_port.bwrite_all(&query_block).is_ok()
+            && uart8_port.bflush().is_ok()
+        {
             writeln!(console_tx, "--\r").unwrap();
         } else {
             continue;
@@ -109,36 +116,62 @@ fn main() -> ! {
                     match recv_count {
                         0 => {
                             if (word & 0x40) == 0x40 || (word & 0x80) == 0x80 {
-                                writeln!(console_tx,"pkt err: 0x{:x}\r",word).unwrap();
+                                writeln!(console_tx, "pkt err: 0x{:x}\r", word)
+                                    .unwrap();
                                 packet_error = true;
-                            }
-                            else {
-                                let _ = writeln!(console_tx,"cc: 0x{:x} \r", word);
+                            } else {
+                                let _ =
+                                    writeln!(console_tx, "cc: 0x{:x} \r", word);
                                 packet_reg_count = word;
-                                if packet_reg_count != (TEST_REG_COUNT as u8) &&
-                                    QUERY_TYPE == PACKET_CODE_READ {
+                                if packet_reg_count != (TEST_REG_COUNT as u8)
+                                    && QUERY_TYPE == PACKET_CODE_READ
+                                {
                                     continue 'outer;
                                 }
                             }
                         }
-                        1 => { writeln!(console_tx,"crc: 0x{:x}\r", word).unwrap();}
-                        2 => { writeln!(console_tx,"p: {} \r", word).unwrap();}
+                        1 => {
+                            writeln!(console_tx, "crc: 0x{:x}\r", word)
+                                .unwrap();
+                        }
+                        2 => {
+                            writeln!(console_tx, "p: {} \r", word).unwrap();
+                        }
                         3 => {
-                            writeln!(console_tx,"o: {} \r", word).unwrap();
+                            writeln!(console_tx, "o: {} \r", word).unwrap();
                             if packet_error || (0 == packet_reg_count) {
                                 //no more packet data will come after this
                                 continue 'outer;
                             }
                         }
                         4 => {
-                            writeln!(console_tx,"[{}] {:x} \r",recv_count - PACKET_HEADER_LEN, word).unwrap();
-                            if QUERY_PAGE == PAGE_CONFIG  && word != EXPECTED_PX4IO_PROTOCOL_VERSION {
-                                writeln!(console_tx,"proto version: {} expected: {} \r", word, EXPECTED_PX4IO_PROTOCOL_VERSION).unwrap();
+                            writeln!(
+                                console_tx,
+                                "[{}] {:x} \r",
+                                recv_count - PACKET_HEADER_LEN,
+                                word
+                            )
+                            .unwrap();
+                            if QUERY_PAGE == PAGE_CONFIG
+                                && word != EXPECTED_PX4IO_PROTOCOL_VERSION
+                            {
+                                writeln!(
+                                    console_tx,
+                                    "proto version: {} expected: {} \r",
+                                    word, EXPECTED_PX4IO_PROTOCOL_VERSION
+                                )
+                                .unwrap();
                                 continue 'outer;
                             }
                         }
                         _ => {
-                            writeln!(console_tx,"[{}] {:x} \r",recv_count - PACKET_HEADER_LEN, word).unwrap();
+                            writeln!(
+                                console_tx,
+                                "[{}] {:x} \r",
+                                recv_count - PACKET_HEADER_LEN,
+                                word
+                            )
+                            .unwrap();
                         }
                     }
                     recv_count += 1;
@@ -147,12 +180,11 @@ fn main() -> ! {
                     }
                 }
                 Err(any) => {
-                    writeln!(console_tx,"{:?} \r",any).unwrap();
+                    writeln!(console_tx, "{:?} \r", any).unwrap();
                     continue 'outer;
                     //writeln!(console_tx,".").unwrap();
                 }
             }
         }
     }
-
 }
