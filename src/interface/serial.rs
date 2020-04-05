@@ -44,14 +44,14 @@ where
                 }
                 Err(nb::Error::WouldBlock) => {
                     block_count += 1;
-                    if block_count > 40 {
+                    if block_count > 2 {
                         hprintln!("blocked!").unwrap();
                         break;
                     }
                 }
                 _ => {
                     fail_count += 1;
-                    if fail_count > 20 {
+                    if fail_count > 5 {
                         hprintln!("read err {:?}", read_result).unwrap();
                         break;
                     }
@@ -60,10 +60,9 @@ where
         }
         if read_count != buffer.len() {
             let _ = hprintln!(
-                "nread {} != {} {:x?}",
+                "nread {} != {}",
                 read_count,
                 buffer.len(),
-                buffer[..read_count].as_ref()
             );
         }
         Ok(read_count)
@@ -77,7 +76,7 @@ where
                 hprintln!("write err").unwrap();
             }
         }
-
+        let _ = block!(self.serial.flush());
         Ok(())
     }
 }
@@ -101,7 +100,7 @@ where
     ) -> Result<usize, Self::InterfaceError> {
         let out_reg_count = send.valid_register_count();
         let packet_len = IO_PACKET_HEADER_LEN + (out_reg_count * 2) as usize;
-        hprintln!("ex len: {}", packet_len).unwrap();
+        //hprintln!("ex len: {}", packet_len).unwrap();
 
         // send a packet first, then receive one
         let write_slice = unsafe { any_as_u8_slice(send) };
@@ -113,6 +112,9 @@ where
         // protocol version 4 says send packet is same size as receive packet
         let read_slice = unsafe { any_as_mut_u8_slice(recv) };
         let read_count = self.read_many(&mut read_slice[..packet_len])?;
+        if read_count != packet_len {
+            hprintln!("estd {} read {}", packet_len, read_count).unwrap();
+        }
 
         Ok(read_count)
     }
