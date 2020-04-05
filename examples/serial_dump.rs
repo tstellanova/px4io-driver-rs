@@ -34,7 +34,7 @@ fn main() -> ! {
     let mut ccdr = rcc.sys_ck(100.mhz()).freeze(vos, &dp.SYSCFG);
 
     let clocks = ccdr.clocks;
-    let _delay_source = p_hal::delay::Delay::new(cp.SYST, clocks);
+    let mut delay_source = p_hal::delay::Delay::new(cp.SYST, clocks);
 
     // Grab the only GPIO we need for this example
     let gpioe = dp.GPIOE.split(&mut ccdr.ahb4);
@@ -62,7 +62,7 @@ fn main() -> ! {
     };
 
     const EXPECTED_PX4IO_PROTOCOL_VERSION: u8 = 4;
-    const TEST_REG_COUNT:usize = 6;
+    const TEST_REG_COUNT:usize = 4;
     const QUERY_RESPONSE_LEN:usize = PACKET_HEADER_LEN + 2*TEST_REG_COUNT;
     const QUERY_TYPE: u8 = px4io_driver::protocol::PACKET_CODE_READ; //PACKET_CODE_WRITE
     const QUERY_PAGE: u8 = PAGE_CONFIG;
@@ -83,8 +83,9 @@ fn main() -> ! {
             }
         }
 
+        delay_source.delay_ms(250u8);
         if uart8_port.bwrite_all(&query_block).is_ok() && uart8_port.bflush().is_ok() {
-            writeln!(console_tx, "--").unwrap();
+            writeln!(console_tx, "--\r").unwrap();
         } else {
             continue;
         }
@@ -97,7 +98,7 @@ fn main() -> ! {
             let rc = uart8_port.read();
             match rc {
                 Err(nb::Error::WouldBlock) => {
-                    //writeln!(console_tx,"b").unwrap();
+                    //writeln!(console_tx,"b \r").unwrap();
                     blocking_count += 1;
                     if blocking_count > 1 {
                         continue 'outer;
@@ -108,11 +109,11 @@ fn main() -> ! {
                     match recv_count {
                         0 => {
                             if (word & 0x40) == 0x40 || (word & 0x80) == 0x80 {
-                                writeln!(console_tx,"pkt err: 0x{:x}",word).unwrap();
+                                writeln!(console_tx,"pkt err: 0x{:x}\r",word).unwrap();
                                 packet_error = true;
                             }
                             else {
-                                let _ = writeln!(console_tx,"cc: 0x{:x}", word);
+                                let _ = writeln!(console_tx,"cc: 0x{:x} \r", word);
                                 packet_reg_count = word;
                                 if packet_reg_count != (TEST_REG_COUNT as u8) &&
                                     QUERY_TYPE == PACKET_CODE_READ {
@@ -120,24 +121,24 @@ fn main() -> ! {
                                 }
                             }
                         }
-                        1 => { writeln!(console_tx,"crc: 0x{:x}", word).unwrap();}
-                        2 => { writeln!(console_tx,"p: {}", word).unwrap();}
+                        1 => { writeln!(console_tx,"crc: 0x{:x}\r", word).unwrap();}
+                        2 => { writeln!(console_tx,"p: {} \r", word).unwrap();}
                         3 => {
-                            writeln!(console_tx,"o: {}", word).unwrap();
+                            writeln!(console_tx,"o: {} \r", word).unwrap();
                             if packet_error || (0 == packet_reg_count) {
                                 //no more packet data will come after this
                                 continue 'outer;
                             }
                         }
                         4 => {
-                            writeln!(console_tx,"[{}] {:x}",recv_count - PACKET_HEADER_LEN, word).unwrap();
+                            writeln!(console_tx,"[{}] {:x} \r",recv_count - PACKET_HEADER_LEN, word).unwrap();
                             if QUERY_PAGE == PAGE_CONFIG  && word != EXPECTED_PX4IO_PROTOCOL_VERSION {
-                                writeln!(console_tx,"proto version: {} expected: {} ", word, EXPECTED_PX4IO_PROTOCOL_VERSION).unwrap();
+                                writeln!(console_tx,"proto version: {} expected: {} \r", word, EXPECTED_PX4IO_PROTOCOL_VERSION).unwrap();
                                 continue 'outer;
                             }
                         }
                         _ => {
-                            writeln!(console_tx,"[{}] {:x}",recv_count - PACKET_HEADER_LEN, word).unwrap();
+                            writeln!(console_tx,"[{}] {:x} \r",recv_count - PACKET_HEADER_LEN, word).unwrap();
                         }
                     }
                     recv_count += 1;
@@ -146,7 +147,7 @@ fn main() -> ! {
                     }
                 }
                 Err(any) => {
-                    writeln!(console_tx,"{:?}",any).unwrap();
+                    writeln!(console_tx,"{:?} \r",any).unwrap();
                     continue 'outer;
                     //writeln!(console_tx,".").unwrap();
                 }
@@ -155,15 +156,3 @@ fn main() -> ! {
     }
 
 }
-
-
-
-// fn console_print(out: &mut (impl Write + embedded_hal::serial::Write<u8>), args: Arguments<'_>) {
-//     let mut format_buf = ArrayString::<[u8; 64]>::new();
-//     format_buf.clear();
-//     if fmt::write(&mut format_buf, args).is_ok() {
-//         //write on console out
-//         let _ = out.write_str(format_buf.as_str());
-//         let _ = out.flush();
-//     }
-// }
