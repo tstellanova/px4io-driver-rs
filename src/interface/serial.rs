@@ -14,6 +14,7 @@ impl<SER, CommE> SerialInterface<SER>
 where
     SER: hal::serial::Read<u8, Error = CommE>
         + hal::blocking::serial::Write<u8, Error = CommE>,
+    CommE: core::fmt::Debug,
 {
     pub fn new(serial_port: SER) -> Self {
         Self {
@@ -41,6 +42,7 @@ impl<SER, CommE> DeviceInterface for SerialInterface<SER>
 where
     SER: hal::serial::Read<u8, Error = CommE>
         + hal::blocking::serial::Write<u8, Error = CommE>,
+    CommE: core::fmt::Debug,
 {
     type InterfaceError = Error<CommE>;
 
@@ -63,29 +65,4 @@ where
 
         Ok(read_count)
     }
-
-    // fn fill(&mut self) -> usize {
-    //     let mut fetch_count = self.shuffler.vacant();
-    //     let mut err_count = 0;
-    //
-    //     while fetch_count > 0 {
-    //         let rc = self.serial.read();
-    //         match rc {
-    //             Ok(byte) => {
-    //                 err_count = 0; //reset
-    //                 self.shuffler.push_one(byte);
-    //                 fetch_count -= 1;
-    //             }
-    //             Err(nb::Error::WouldBlock) => {}
-    //             Err(nb::Error::Other(_)) => {
-    //                 // in practice this is returning Overrun a ton on stm32h7
-    //                 err_count += 1;
-    //                 if err_count > 100 {
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     self.shuffler.available()
-    // }
 }

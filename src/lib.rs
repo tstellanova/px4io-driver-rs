@@ -10,7 +10,7 @@ use embedded_hal as hal;
 #[allow(unused)]
 mod protocol;
 #[allow(unused)]
-mod registers;
+pub mod registers;
 
 mod interface;
 use crate::protocol::{PACKET_CODE_CORRUPT, PACKET_CODE_ERROR};
@@ -35,8 +35,7 @@ pub fn new_serial_driver<UART, CommE>(
 ) -> Option<IoMcuDriver<SerialInterface<UART>>>
 where
     UART: hal::serial::Read<u8, Error = CommE>
-        + hal::blocking::serial::Write<u8, Error = CommE>
-        + hal::blocking::serial::write::Default<u8>,
+        + hal::blocking::serial::Write<u8, Error = CommE>,
     CommE: core::fmt::Debug,
 {
     let iface = interface::SerialInterface::new(uart);

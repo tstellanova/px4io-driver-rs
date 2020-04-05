@@ -38,7 +38,7 @@ pub const PAGE_LOCAL_SENSORS: u8 = 56;
 /// Special page value used for testing and debugging
 pub const PAGE_TEST_DEBUG: u8 = 127;
 
-/// Configuration page register offsets
+/// Configuration page (PAGE_CONFIG) register offsets:
 
 /// The protocol version the px4io mcu firmware supports
 pub const REG_CONFIG_PROTOCOL_VERSION: u8 = 0;
@@ -59,7 +59,7 @@ pub const REG_CONFIG_N_ADC_INPUTS: u8 = 7;
 /// Maximum number of Relay outputs
 pub const REG_CONFIG_N_RELAY_OUTPUTS: u8 = 8;
 
-/// Raw RC Input Page offsets
+/// Raw RC Input Page (PAGE_RAW_RC_INPUT) register offsets:
 
 /// Number of currently valid RC channels
-pub const REG_RAW_RC_COUNT: u8 = 0;
+pub const REG_RAW_RC_INPUT_COUNT: u8 = 0;

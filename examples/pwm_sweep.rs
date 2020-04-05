@@ -7,10 +7,9 @@ use p_hal::{pac, prelude::*};
 use stm32h7xx_hal as p_hal;
 
 use cortex_m_rt::entry;
+use cortex_m_semihosting::hprintln;
 
-use p_hal::serial::config::{Parity, StopBits, WordLength};
-use px4io_driver::{new_serial_driver, registers::*};
-
+use px4io_driver::{new_serial_driver, registers, RegisterValue};
 
 #[entry]
 fn main() -> ! {
@@ -30,6 +29,7 @@ fn main() -> ! {
 
     // Grab the only GPIO we need for this example
     let gpiob = dp.GPIOB.split(&mut ccdr.ahb4);
+    let gpioe = dp.GPIOE.split(&mut ccdr.ahb4);
 
     // UART8 is the serial connection to the px4io IO coprocessor
     let uart8_port = {
@@ -40,12 +40,17 @@ fn main() -> ! {
         dp.UART8.usart((tx, rx), config, &mut ccdr).unwrap()
     };
 
-    //TODO
-
     if let Some(mut driver) = new_serial_driver(uart8_port) {
         // 0 == REG_CONFIG_N_RELAY_OUTPUTS+1
-        let mut fun_regs: [RegisterValue; 9] = [0; 9];
-        driver.get_registers(protocol::PAGE_CONFIG, protocol::REG_CONFIG_PROTOCOL_VERSION, &mut fun_regs);
+        let mut fetch_regs: [RegisterValue; 9] = [0; 9];
+        driver.get_registers(
+            registers::PAGE_CONFIG,
+            registers::REG_CONFIG_PROTOCOL_VERSION,
+            &mut fetch_regs,
+        );
+
+        hprintln!("fetch_regs: {:x?}", fetch_regs).ok();
     }
 
+    loop {}
 }
