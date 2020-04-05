@@ -7,7 +7,8 @@ use p_hal::{pac, prelude::*};
 use stm32h7xx_hal as p_hal;
 
 use cortex_m_rt::entry;
-use cortex_m_semihosting::hprintln;
+
+use core::fmt::{Write};
 
 use px4io_driver::{new_serial_driver, registers, RegisterValue};
 
@@ -29,6 +30,17 @@ fn main() -> ! {
 
     // Grab the only GPIO we need for this example
     let gpioe = dp.GPIOE.split(&mut ccdr.ahb4);
+    let gpiof = dp.GPIOF.split(&mut ccdr.ahb4);
+
+    //UART7 is debug (dronecode debug port) on Durandal
+    let uart7_port = {
+        let config =
+            p_hal::serial::config::Config::default().baudrate(57_600_u32.bps());
+        let rx = gpiof.pf6.into_alternate_af7();
+        let tx = gpioe.pe8.into_alternate_af7();
+        dp.UART7.usart((tx, rx), config, &mut ccdr).unwrap()
+    };
+    let (mut console_tx, _) = uart7_port.split();
 
     // UART8 is the serial connection to the px4io IO coprocessor
     // 1.5 Mbps is the max rate for px4io
@@ -42,17 +54,26 @@ fn main() -> ! {
 
     if let Some(mut driver) = new_serial_driver(uart8_port) {
         loop {
-            let _ = hprintln!("---").unwrap();
-            // 6 == REG_CONFIG_N_ACTUATORS+1
-            let mut fetch_regs: [RegisterValue; 6] = [0; 6];
+            delay_source.delay_ms(100u8);
+
+            let mut values: [RegisterValue; 5] = [0; 5];
+            let mut offset = registers::REG_CONFIG_PROTOCOL_VERSION;
+            let _ = writeln!(console_tx,"---").unwrap();
             let _ = driver.get_registers(
                 registers::PAGE_CONFIG,
-                registers::REG_CONFIG_PROTOCOL_VERSION,
-                &mut fetch_regs,
+                offset,
+                &mut values,
             );
+            writeln!(console_tx,"{}: {:x?}", offset, values).unwrap();
 
-            hprintln!("fetch_regs: {:x?}", fetch_regs).unwrap();
-            delay_source.delay_ms(100u8);
+            let mut values: [RegisterValue; 4] = [0; 4];
+            offset = registers::REG_CONFIG_N_RC_INPUTS;
+            let _ = driver.get_registers(
+                registers::PAGE_CONFIG,
+                offset,
+                &mut values,
+            );
+            writeln!(console_tx,"{} : {:x?}", offset, values).unwrap();
         }
     }
 
