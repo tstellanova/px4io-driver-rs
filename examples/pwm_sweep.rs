@@ -7,8 +7,10 @@ use p_hal::{pac, prelude::*};
 use stm32h7xx_hal as p_hal;
 
 use cortex_m_rt::entry;
+use p_hal::interrupt;
 
 use core::fmt::Write;
+use cortex_m_semihosting::hprintln;
 
 use px4io_driver::{new_serial_driver, registers, RegisterValue};
 
@@ -49,7 +51,11 @@ fn main() -> ! {
             .baudrate(1_500_000_u32.bps());
         let rx = gpioe.pe0.into_alternate_af8();
         let tx = gpioe.pe1.into_alternate_af8();
-        dp.UART8.usart((tx, rx), config, &mut ccdr).unwrap()
+        let mut port = dp.UART8.usart((tx, rx), config, &mut ccdr).unwrap();
+        //	rCR1 = USART_CR1_RE | USART_CR1_TE | USART_CR1_UE | USART_CR1_IDLEIE;
+        port.listen(p_hal::serial::Event::GenError);
+        port.listen(p_hal::serial::Event::Idle);
+        port
     };
 
     if let Some(mut driver) = new_serial_driver(uart8_port) {
@@ -82,3 +88,25 @@ fn main() -> ! {
         delay_source.delay_ms(250u8);
     }
 }
+
+// Interrupt handler for the UART8 interrupt
+#[interrupt]
+fn UART8() {
+    static mut COUNT: i32 = 0;
+
+    // `COUNT` is safe to access and has type `&mut i32`
+    *COUNT += 1;
+    hprintln!("uart8: {}", COUNT).unwrap();
+
+    // ..
+    // Clear reason for the generated interrupt request
+}
+
+// fn setup_uart_dma<T>(port: p_hal::serial::Serial) -> p_hal::serial::Serial
+// {
+// // #define PX4IO_SERIAL_VECTOR            STM32_IRQ_UART8
+// // #define PX4IO_SERIAL_TX_DMAMAP         DMAMAP_UART8_TX
+// // #define PX4IO_SERIAL_RX_DMAMAP         DMAMAP_UART8_RX
+//
+//
+// }

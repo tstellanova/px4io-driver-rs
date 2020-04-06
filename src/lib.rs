@@ -13,9 +13,6 @@ pub mod protocol;
 pub mod registers;
 
 pub mod interface;
-use crate::protocol::{
-    PACKET_CODE_CORRUPT, PACKET_CODE_ERROR, PACKET_CODE_WRITE,
-};
 use crate::Error::ErrorResponse;
 use interface::{DeviceInterface, IoPacket, SerialInterface};
 
@@ -33,9 +30,6 @@ pub enum Error<CommE> {
 
     /// No Data to Read
     Stalled,
-
-    /// Too many communication errors
-    GenericOverload,
 
     /// Device is not responding
     Unresponsive,
@@ -108,7 +102,6 @@ where
         &mut self,
         retries: u8,
     ) -> Result<(), DI::InterfaceError> {
-        let query_count_code = self.send_packet.count_code();
         self.recv_packet.clear();
 
         if let Ok(recv_size) = self.di.exchange_packets(
@@ -116,20 +109,14 @@ where
             &mut self.recv_packet,
             retries,
         ) {
-            if recv_size > 0 && self.recv_packet.is_crc_valid() {
-                hprintln!("recvd: {:?}", self.recv_packet).unwrap();
-                let count_code = self.recv_packet.count_code();
-
-                if count_code != PACKET_CODE_CORRUPT
-                    && count_code != PACKET_CODE_ERROR
-                {
-                    if count_code == query_count_code {
-                        hprintln!("missing: {}", query_count_code).unwrap();
-                    }
+            if recv_size > 0
+                && self.recv_packet.is_crc_valid()
+                && !self.recv_packet.packet_error()
+            {
                     return Ok(());
-                }
-            } else {
-                hprintln!("pex_r").unwrap();
+            }
+            else {
+                hprintln!("bad pkt: {:?}", self.recv_packet).unwrap();
             }
         }
 

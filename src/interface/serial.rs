@@ -9,10 +9,9 @@ use crate::interface::{
     PACKET_REG_COUNT_MASK,
 };
 
-use crate::Error::{Comm, Stalled, Unresponsive, GenericOverload};
+use crate::Error::{Stalled, Unresponsive};
 #[cfg(debug_assertions)]
 use cortex_m_semihosting::hprintln;
-use nb::Error::Other;
 
 /// This encapsulates the Serial UART peripheral
 pub struct SerialInterface<SER> {
@@ -22,12 +21,12 @@ pub struct SerialInterface<SER> {
     /// error counts
     restart_count_blocking: u32,
     restart_count_comm_err: u32,
-
 }
 
 impl<SER, CommE> SerialInterface<SER>
 where
-    SER: hal::serial::Read<u8, Error = CommE> + hal::serial::Write<u8>,
+    SER: hal::serial::Read<u8, Error = CommE>
+    + hal::serial::Write<u8>,
     CommE: core::fmt::Debug,
 {
     pub fn new(serial_port: SER) -> Self {
@@ -57,9 +56,8 @@ where
                         return Err(Stalled);
                     }
                 }
-                Err(Other(_)) => {
-                    self.restart_count_comm_err += 1;
-                    return Err(GenericOverload);
+                Err(nb::Error::Other(e)) => {
+                    return Err(Error::Comm(e))
                 }
             }
         }
@@ -69,14 +67,13 @@ where
 
     /// Write up to buffer size bytes
     fn write_many(&mut self, buffer: &[u8]) -> Result<(), Error<CommE>> {
-        for word in buffer {
-            let rc = block!(self.serial.write(*word));
-            if rc.is_err() {
-                hprintln!("write err").unwrap();
-            }
+        for &byte in buffer {
+            //TODO fix error handling on write
+            let _ = block!(self.serial.write(byte));
         }
         let _ = block!(self.serial.flush());
         Ok(())
+
     }
 }
 
@@ -124,7 +121,6 @@ where
 
                 let packet_err = header_buf[0] & PACKET_CODE_MASK;
                 if 0 != packet_err {
-                    hprintln!("h {:x?}", header_buf).unwrap();
                     continue;
                 }
 

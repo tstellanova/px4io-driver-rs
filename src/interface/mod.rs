@@ -3,6 +3,7 @@ pub use serial::SerialInterface;
 
 use crate::RegisterValue;
 use core::fmt;
+use crate::protocol::{PACKET_CODE_ERROR, PACKET_CODE_CORRUPT};
 
 /// A method of communicating with the device
 pub trait DeviceInterface {
@@ -144,6 +145,11 @@ impl IoPacket {
 
     pub fn count_code(&self) -> u8 {
         self.count_code
+    }
+
+    pub fn packet_error(&self) -> bool {
+        let packet_code = self.packet_code();
+        (packet_code == PACKET_CODE_ERROR) ||  (packet_code == PACKET_CODE_CORRUPT)
     }
 
     /// Calculate the CRC for this packet
