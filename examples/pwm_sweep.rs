@@ -58,22 +58,22 @@ fn main() -> ! {
 
             let mut values: [RegisterValue; 5] = [0; 5];
             let mut offset = registers::REG_CONFIG_PROTOCOL_VERSION;
-            let _ = writeln!(console_tx, "---").unwrap();
-            let _ = driver.get_registers(
-                registers::PAGE_CONFIG,
-                offset,
-                &mut values,
-            );
-            writeln!(console_tx, "{}: {:x?}", offset, values).unwrap();
+            let _ = writeln!(console_tx, "---\r").unwrap();
+            if driver
+                .get_registers(registers::PAGE_CONFIG, offset, &mut values)
+                .is_ok()
+            {
+                writeln!(console_tx, "{}: {:x?} \r", offset, values).unwrap();
+            }
 
             let mut values: [RegisterValue; 4] = [0; 4];
             offset = registers::REG_CONFIG_N_RC_INPUTS;
-            let _ = driver.get_registers(
-                registers::PAGE_CONFIG,
-                offset,
-                &mut values,
-            );
-            writeln!(console_tx, "{} : {:x?}", offset, values).unwrap();
+            if driver
+                .get_registers(registers::PAGE_CONFIG, offset, &mut values)
+                .is_ok()
+            {
+                writeln!(console_tx, "{} : {:x?} \r", offset, values).unwrap();
+            }
         }
     }
 

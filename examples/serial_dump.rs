@@ -62,7 +62,7 @@ fn main() -> ! {
     };
 
     const EXPECTED_PX4IO_PROTOCOL_VERSION: u8 = 4;
-    const TEST_REG_COUNT: usize = 4;
+    const TEST_REG_COUNT: usize = 5;
     const QUERY_RESPONSE_LEN: usize = PACKET_HEADER_LEN + 2 * TEST_REG_COUNT;
     const QUERY_TYPE: u8 = px4io_driver::protocol::PACKET_CODE_READ; //PACKET_CODE_WRITE
     const QUERY_PAGE: u8 = PAGE_CONFIG;

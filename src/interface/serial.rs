@@ -5,11 +5,14 @@ use embedded_hal as hal;
 use nb::block;
 
 use crate::interface::{
-    any_as_mut_u8_slice, any_as_u8_slice, IO_PACKET_HEADER_LEN,
+    any_as_mut_u8_slice, any_as_u8_slice, PACKET_CODE_MASK, PACKET_HEADER_LEN,
+    PACKET_REG_COUNT_MASK,
 };
 
+use crate::Error::{Comm, Stalled, Unresponsive};
 #[cfg(debug_assertions)]
 use cortex_m_semihosting::hprintln;
+use nb::Error::Other;
 
 /// This encapsulates the Serial UART peripheral
 pub struct SerialInterface<SER> {
@@ -30,41 +33,29 @@ where
 
     /// Read up to buffer size bytes
     fn read_many(&mut self, buffer: &mut [u8]) -> Result<usize, Error<CommE>> {
-        let mut fail_count = 0;
         let mut read_count: usize = 0;
         let mut block_count = 0;
         while read_count < buffer.len() {
             let read_result = self.serial.read();
             match read_result {
                 Ok(read_byte) => {
-                    fail_count = 0;
                     block_count = 0;
                     buffer[read_count] = read_byte;
                     read_count += 1;
                 }
                 Err(nb::Error::WouldBlock) => {
                     block_count += 1;
-                    if block_count > 2 {
-                        hprintln!("blocked!").unwrap();
-                        break;
+                    if block_count > 1 {
+                        //hprintln!("blk!").unwrap();
+                        return Err(Stalled);
                     }
                 }
-                _ => {
-                    fail_count += 1;
-                    if fail_count > 5 {
-                        hprintln!("read err {:?}", read_result).unwrap();
-                        break;
-                    }
+                Err(Other(_)) => {
+                    read_result.map_err(Error::Comm)?;
                 }
             }
         }
-        if read_count != buffer.len() {
-            let _ = hprintln!(
-                "nread {} != {}",
-                read_count,
-                buffer.len(),
-            );
-        }
+
         Ok(read_count)
     }
 
@@ -97,54 +88,74 @@ where
         &mut self,
         send: &IoPacket,
         recv: &mut IoPacket,
+        num_retries: u8,
     ) -> Result<usize, Self::InterfaceError> {
         let out_reg_count = send.valid_register_count();
-        let packet_len = IO_PACKET_HEADER_LEN + (out_reg_count * 2) as usize;
+        let packet_len = PACKET_HEADER_LEN + (out_reg_count * 2) as usize;
         //hprintln!("ex len: {}", packet_len).unwrap();
-
-        // send a packet first, then receive one
         let write_slice = unsafe { any_as_u8_slice(send) };
-        let trc = self.write_many(&write_slice[..packet_len]);
-        if trc.is_err() {
-            hprintln!("trc: {:?}", trc).unwrap();
-        }
-
-        // protocol version 4 says send packet is same size as receive packet
         let read_slice = unsafe { any_as_mut_u8_slice(recv) };
-        let read_count = self.read_many(&mut read_slice[..packet_len])?;
-        if read_count != packet_len {
-            hprintln!("estd {} read {}", packet_len, read_count).unwrap();
+        let mut header_buf = [0u8; PACKET_HEADER_LEN];
+
+        for _ in 0..num_retries {
+            self.discard_input();
+
+            // send a packet first, then receive one
+            let trc = self.write_many(&write_slice[..packet_len]);
+            if trc.is_err() {
+                hprintln!("trc: {:?}", trc).unwrap();
+                return Err(trc.unwrap_err());
+            }
+
+            //read header first
+            let nread_rc = self.read_many(&mut header_buf);
+            if let Ok(header_count) = nread_rc {
+                hprintln!("h {:x?}", header_buf).unwrap();
+                if header_count != PACKET_HEADER_LEN {
+                    continue;
+                }
+
+                let packet_err = header_buf[0] & PACKET_CODE_MASK;
+                if 0 != packet_err {
+                    hprintln!("h {:x?}", header_buf).unwrap();
+                    continue;
+                }
+
+                let mut read_count = header_count;
+                let reg_count = header_buf[0] & PACKET_REG_COUNT_MASK;
+                if reg_count > 0 {
+                    let total_len =
+                        PACKET_HEADER_LEN + (2 * reg_count) as usize;
+                    if let Ok(body_count) = self.read_many(
+                        &mut read_slice[PACKET_HEADER_LEN..total_len],
+                    ) {
+                        read_count += body_count;
+                        read_slice[0..PACKET_HEADER_LEN]
+                            .copy_from_slice(header_buf.as_ref());
+                        return Ok(read_count);
+                    }
+                } else {
+                    return Ok(read_count);
+                }
+            } else {
+                hprintln!("h_fl {:?}", nread_rc).unwrap();
+            }
         }
 
-        Ok(read_count)
+        hprintln!("ex_fl").unwrap();
+        Err(Unresponsive)
     }
 
     /// Clear any remaining bytes in the pipe
     fn discard_input(&mut self) {
-        let mut discard_count = 0;
-        let mut fail_count = 0;
         loop {
-            let read_result = self.serial.read();
-            match read_result {
-                Ok(_) => {
-                    fail_count = 0;
-                    discard_count += 1;
-                }
+            let rc = self.serial.read();
+            match rc {
                 Err(nb::Error::WouldBlock) => {
                     break;
                 }
-                _ => {
-                    //hprintln!("read err {:?}", read_result).unwrap();
-                    fail_count += 1;
-                    if fail_count > 10 {
-                        break;
-                    }
-                }
+                _ => {}
             }
-        }
-
-        if discard_count > 0 {
-            hprintln!("discard {}", discard_count).unwrap();
         }
     }
 }

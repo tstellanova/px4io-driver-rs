@@ -31,6 +31,9 @@ pub enum Error<CommE> {
     /// Error response from px4io
     ErrorResponse,
 
+    /// No Data to Read
+    Stalled,
+
     /// Device is not responding
     Unresponsive,
 }
@@ -103,36 +106,31 @@ where
         retries: u8,
     ) -> Result<(), DI::InterfaceError> {
         let query_count_code = self.send_packet.count_code();
-        for _ in 0..retries {
-            self.recv_packet.clear();
-            if let Ok(recv_size) = self
-                .di
-                .exchange_packets(&self.send_packet, &mut self.recv_packet)
-            {
-                if recv_size > 0 && self.recv_packet.is_crc_valid() {
-                    let count_code = self.recv_packet.count_code();
-                    hprintln!(
-                        "recv_size: {} ccode: {} qcode: {}",
-                        recv_size,
-                        count_code,
-                        query_count_code
-                    )
-                    .unwrap();
-                    if count_code != PACKET_CODE_CORRUPT
-                        && count_code != PACKET_CODE_ERROR
-                    {
-                        if count_code == query_count_code {
-                            return Ok(());
-                        }
-                    } else {
-                        self.di.discard_input(); //try again
+        self.recv_packet.clear();
+
+        if let Ok(recv_size) = self.di.exchange_packets(
+            &self.send_packet,
+            &mut self.recv_packet,
+            retries,
+        ) {
+            if recv_size > 0 && self.recv_packet.is_crc_valid() {
+                hprintln!("recvd: {:?}", self.recv_packet).unwrap();
+                let count_code = self.recv_packet.count_code();
+
+                if count_code != PACKET_CODE_CORRUPT
+                    && count_code != PACKET_CODE_ERROR
+                {
+                    if count_code == query_count_code {
+                        hprintln!("missing: {}", query_count_code).unwrap();
                     }
-                } else {
-                    hprintln!("packet_exchange invalid recv").unwrap();
+                    return Ok(());
                 }
+            } else {
+                hprintln!("packet_exchange invalid recv").unwrap();
             }
         }
-        hprintln!("packet_exchange failed").unwrap();
+
+        hprintln!("pex_fl").unwrap();
         Err(ErrorResponse)
     }
 
@@ -162,7 +160,7 @@ where
             offset,
             values,
         );
-        self.packet_exchange(5)?;
+        self.packet_exchange(10)?;
         // if we get this far, then self.recv_packet contains read values
         if self.recv_packet.valid_register_count() != values.len() as u8 {
             hprintln!(

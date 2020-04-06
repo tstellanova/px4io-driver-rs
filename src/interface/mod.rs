@@ -2,6 +2,7 @@ pub mod serial;
 pub use serial::SerialInterface;
 
 use crate::RegisterValue;
+use core::fmt;
 
 /// A method of communicating with the device
 pub trait DeviceInterface {
@@ -16,6 +17,7 @@ pub trait DeviceInterface {
         &mut self,
         send: &IoPacket,
         recv: &mut IoPacket,
+        num_retries: u8,
     ) -> Result<usize, Self::InterfaceError>;
 
     /// Clear any remaining bytes in the pipe
@@ -45,7 +47,7 @@ pub(crate) unsafe fn any_as_mut_u8_slice<T: Sized>(p: &mut T) -> &mut [u8] {
 
 /// The packet format supported by the px4io mcu firmware
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct IoPacket {
     /// A mix of an operation code (such as "read") and a count of the number
     /// of valid registers in `registers`. In practice this limits the
@@ -63,6 +65,22 @@ pub struct IoPacket {
 /// The length of the packet excluding register values
 const IO_PACKET_HEADER_LEN: usize = 4;
 // const IO_PACKET_MAX_LEN: usize = IO_PACKET_HEADER_LEN + MAX_PACKET_REGISTERS*2;
+
+/// Used to extract the packet code from a count_code
+pub const PACKET_CODE_MASK: u8 = 0xc0;
+/// Used to extract the number of register values from count_code
+pub const PACKET_REG_COUNT_MASK: u8 = 0x3f;
+
+impl core::fmt::Debug for IoPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IoPacket")
+            .field("count_code", &self.count_code)
+            .field("crc", &self.crc)
+            .field("page", &self.page)
+            .field("offset", &self.offset)
+            .finish()
+    }
+}
 
 impl IoPacket {
     pub fn default() -> Self {
@@ -102,8 +120,7 @@ impl IoPacket {
         self.page = 0;
         self.offset = 0;
         for reg in self.registers.as_mut() {
-            //TODO Do we need to use this magic value?
-            *reg = 0x55aa;
+            *reg = 0; //0x55aa; //TODO Do we need to use this magic value?
         }
         self
     }
@@ -117,12 +134,12 @@ impl IoPacket {
     /// How many register values have been filled in this packet?
     /// (Extracts the valid register count from our count_code)
     pub fn valid_register_count(&self) -> u8 {
-        self.count_code & Self::PACKET_REG_COUNT_MASK
+        self.count_code & PACKET_REG_COUNT_MASK
     }
 
     /// Extract the packet code from our count_code
     pub fn packet_code(&self) -> u8 {
-        self.count_code & Self::PACKET_CODE_MASK
+        self.count_code & PACKET_CODE_MASK
     }
 
     pub fn count_code(&self) -> u8 {
@@ -176,9 +193,4 @@ impl IoPacket {
         0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF,
         0xFA, 0xFD, 0xF4, 0xF3,
     ];
-
-    /// Used to extract the packet code from a count_code
-    const PACKET_CODE_MASK: u8 = 0xc0;
-    /// Used to extract the number of register values from count_code
-    const PACKET_REG_COUNT_MASK: u8 = 0x3f;
 }
