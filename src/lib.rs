@@ -34,6 +34,9 @@ pub enum Error<CommE> {
     /// No Data to Read
     Stalled,
 
+    /// Too many communication errors
+    GenericOverload,
+
     /// Device is not responding
     Unresponsive,
 }
@@ -96,7 +99,7 @@ where
             offset,
             values,
         );
-        self.packet_exchange(3)?;
+        self.packet_exchange(10)?;
         Ok(())
     }
 
@@ -126,11 +129,11 @@ where
                     return Ok(());
                 }
             } else {
-                hprintln!("packet_exchange invalid recv").unwrap();
+                hprintln!("pex_r").unwrap();
             }
         }
 
-        hprintln!("pex_fl").unwrap();
+        hprintln!("pex_e").unwrap();
         Err(ErrorResponse)
     }
 

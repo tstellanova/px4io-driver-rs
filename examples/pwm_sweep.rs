@@ -54,7 +54,7 @@ fn main() -> ! {
 
     if let Some(mut driver) = new_serial_driver(uart8_port) {
         loop {
-            delay_source.delay_ms(100u8);
+            delay_source.delay_ms(250u8);
 
             let mut values: [RegisterValue; 5] = [0; 5];
             let mut offset = registers::REG_CONFIG_PROTOCOL_VERSION;
@@ -66,6 +66,7 @@ fn main() -> ! {
                 writeln!(console_tx, "{}: {:x?} \r", offset, values).unwrap();
             }
 
+            delay_source.delay_ms(250u8);
             let mut values: [RegisterValue; 4] = [0; 4];
             offset = registers::REG_CONFIG_N_RC_INPUTS;
             if driver

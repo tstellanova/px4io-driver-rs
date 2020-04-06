@@ -9,7 +9,7 @@ use crate::interface::{
     PACKET_REG_COUNT_MASK,
 };
 
-use crate::Error::{Comm, Stalled, Unresponsive};
+use crate::Error::{Comm, Stalled, Unresponsive, GenericOverload};
 #[cfg(debug_assertions)]
 use cortex_m_semihosting::hprintln;
 use nb::Error::Other;
@@ -18,6 +18,11 @@ use nb::Error::Other;
 pub struct SerialInterface<SER> {
     /// the serial port to use when communicating
     serial: SER,
+
+    /// error counts
+    restart_count_blocking: u32,
+    restart_count_comm_err: u32,
+
 }
 
 impl<SER, CommE> SerialInterface<SER>
@@ -28,6 +33,8 @@ where
     pub fn new(serial_port: SER) -> Self {
         Self {
             serial: serial_port,
+            restart_count_blocking: 0,
+            restart_count_comm_err: 0
         }
     }
 
@@ -46,12 +53,13 @@ where
                 Err(nb::Error::WouldBlock) => {
                     block_count += 1;
                     if block_count > 1 {
-                        //hprintln!("blk!").unwrap();
+                        self.restart_count_blocking += 1;
                         return Err(Stalled);
                     }
                 }
                 Err(Other(_)) => {
-                    read_result.map_err(Error::Comm)?;
+                    self.restart_count_comm_err += 1;
+                    return Err(GenericOverload);
                 }
             }
         }
@@ -99,7 +107,6 @@ where
 
         for _ in 0..num_retries {
             self.discard_input();
-
             // send a packet first, then receive one
             let trc = self.write_many(&write_slice[..packet_len]);
             if trc.is_err() {
@@ -137,12 +144,11 @@ where
                 } else {
                     return Ok(read_count);
                 }
-            } else {
-                hprintln!("h_fl {:?}", nread_rc).unwrap();
             }
         }
 
-        hprintln!("ex_fl").unwrap();
+        hprintln!("<<< {} {}", self.restart_count_comm_err, self.restart_count_blocking).unwrap();
+        //hprintln!("ex_fl").unwrap();
         Err(Unresponsive)
     }
 

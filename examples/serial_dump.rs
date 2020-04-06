@@ -77,9 +77,8 @@ fn main() -> ! {
     );
     query_block[1] = crc;
 
+    let mut restart_count_write_err = 0;
     let mut restart_count_blocking = 0;
-    let mut restart_count_packet_err = 0;
-    let mut restart_count_regct = 0;
     let mut restart_count_comm_err = 0;
 
     'outer: loop {
@@ -94,20 +93,19 @@ fn main() -> ! {
             }
         }
 
-        //delay_source.delay_ms(250u8);
+        delay_source.delay_ms(1u8);
         if uart8_port.bwrite_all(&query_block).is_ok()
             && uart8_port.bflush().is_ok()
         {
-            writeln!(console_tx, "-- {} {} {} {} \r",
-                     restart_count_blocking,
-                     restart_count_packet_err,
-                     restart_count_regct,
-                     restart_count_comm_err,
+            writeln!(console_tx, "-- {} {} {} -- \r",
+                restart_count_write_err,
+                 restart_count_blocking,
+                 restart_count_comm_err,
             ).unwrap();
         } else {
+            restart_count_write_err += 1;
             continue;
         }
-
 
 
         let mut recv_count = 0;
@@ -140,7 +138,6 @@ fn main() -> ! {
                                 if packet_reg_count != (TEST_REG_COUNT as u8)
                                     && QUERY_TYPE == PACKET_CODE_READ
                                 {
-                                    restart_count_regct += 1;
                                     continue 'outer;
                                 }
                             }
@@ -156,7 +153,6 @@ fn main() -> ! {
                             writeln!(console_tx, "o: {} \r", word).unwrap();
                             if packet_error || (0 == packet_reg_count) {
                                 //no more packet data will come after this
-                                restart_count_packet_err += 1;
                                 continue 'outer;
                             }
                         }
