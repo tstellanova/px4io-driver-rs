@@ -67,6 +67,7 @@ fn main() -> ! {
     const QUERY_TYPE: u8 = px4io_driver::protocol::PACKET_CODE_READ; //PACKET_CODE_WRITE
     const QUERY_PAGE: u8 = PAGE_CONFIG;
 
+    // prep an iopacket that we will send over and over
     let mut query_block = [0u8; QUERY_RESPONSE_LEN];
     query_block[0] = (TEST_REG_COUNT as u8) | QUERY_TYPE;
     query_block[2] = QUERY_PAGE;
@@ -75,6 +76,11 @@ fn main() -> ! {
         TEST_REG_COUNT,
     );
     query_block[1] = crc;
+
+    let mut restart_count_blocking = 0;
+    let mut restart_count_packet_err = 0;
+    let mut restart_count_regct = 0;
+    let mut restart_count_comm_err = 0;
 
     'outer: loop {
         // discard all input
@@ -88,14 +94,21 @@ fn main() -> ! {
             }
         }
 
-        delay_source.delay_ms(250u8);
+        //delay_source.delay_ms(250u8);
         if uart8_port.bwrite_all(&query_block).is_ok()
             && uart8_port.bflush().is_ok()
         {
-            writeln!(console_tx, "--\r").unwrap();
+            writeln!(console_tx, "-- {} {} {} {} \r",
+                     restart_count_blocking,
+                     restart_count_packet_err,
+                     restart_count_regct,
+                     restart_count_comm_err,
+            ).unwrap();
         } else {
             continue;
         }
+
+
 
         let mut recv_count = 0;
         let mut blocking_count = 0;
@@ -108,6 +121,7 @@ fn main() -> ! {
                     //writeln!(console_tx,"b \r").unwrap();
                     blocking_count += 1;
                     if blocking_count > 1 {
+                        restart_count_blocking += 1;
                         continue 'outer;
                     }
                 }
@@ -126,6 +140,7 @@ fn main() -> ! {
                                 if packet_reg_count != (TEST_REG_COUNT as u8)
                                     && QUERY_TYPE == PACKET_CODE_READ
                                 {
+                                    restart_count_regct += 1;
                                     continue 'outer;
                                 }
                             }
@@ -141,6 +156,7 @@ fn main() -> ! {
                             writeln!(console_tx, "o: {} \r", word).unwrap();
                             if packet_error || (0 == packet_reg_count) {
                                 //no more packet data will come after this
+                                restart_count_packet_err += 1;
                                 continue 'outer;
                             }
                         }
@@ -179,10 +195,10 @@ fn main() -> ! {
                         continue 'outer;
                     }
                 }
-                Err(any) => {
-                    writeln!(console_tx, "{:?} \r", any).unwrap();
+                Err(_) => {
+                    //writeln!(console_tx, "{:?} \r", any).unwrap();
+                    restart_count_comm_err += 1;
                     continue 'outer;
-                    //writeln!(console_tx,".").unwrap();
                 }
             }
         }
